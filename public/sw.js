@@ -1,5 +1,9 @@
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open('todo-pwa-cache').then((cache) => cache.addAll(['/index.html'])));
+  event.waitUntil(
+    caches
+      .open('todo-pwa-cache')
+      .then((cache) => cache.addAll(['/index.html', '/main.js', '/Stats.js']))
+  );
 });
 
 self.addEventListener('activate', (event) => {

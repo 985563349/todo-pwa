@@ -21,7 +21,10 @@ webpush.setVapidDetails(
 
 router.post('/subscribe', (ctx) => {
   const subscription = ctx.request.body;
-  webpush.sendNotification(subscription, JSON.stringify({ message: 'hello', type: 'subscribe' }));
+  webpush.sendNotification(
+    subscription,
+    JSON.stringify({ message: 'subscription succeeded.', type: 'subscribe' })
+  );
   ctx.body = 'subscription succeeded.';
 });
 

@@ -18,56 +18,14 @@
         <button>Create</button>
       </div>
     </form>
+    <script src="/main.js"></script>
+    <script src="/Stats.js"></script>
     <script>
-      const PUBLIC_KEY =
-        'BLEpPAE5nG5vV-bDgJgBtGE3vASMQGSEz_l5-nK0qH0Z_lI9RzpXZ87pX8g-Gq8SbasiKx-p4uMjJqUJ0pYfIe4';
+      const stats = new Stats();
+      document.getElementById('network-status').appendChild(stats.domElement);
 
-      function urlBase64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
-      }
-
-      navigator.serviceWorker.register('/sw.js');
-
-      navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
-        const options = {
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY),
-        };
-        serviceWorkerRegistration.pushManager.subscribe(options).then(
-          (pushSubscription) => {
-            fetch('/subscribe', {
-              headers: {
-                'content-type': 'application/json',
-              },
-              method: 'POST',
-              body: JSON.stringify(pushSubscription),
-            });
-          },
-          (error) => {
-            console.error(error);
-          }
-        );
-      });
-    </script>
-    <script>
-      function setNetworkStatus() {
-        const el = document.getElementById('network-status');
-        el.innerHTML = navigator.onLine ? 'on-line' : 'off-line';
-      }
-
-      setNetworkStatus();
-
-      window.addEventListener('offline', setNetworkStatus);
-      window.addEventListener('online', setNetworkStatus);
+      window.addEventListener('offline', () => stats.update());
+      window.addEventListener('online', () => stats.update());
     </script>
   </body>
 </html>
