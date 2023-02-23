@@ -11,12 +11,30 @@
   </head>
   <body>
     <h1>Todo PWA</h1>
+    <p>Network Status: <span id="network-status"></span></p>
+    <form id="form">
+      <div>
+        <input name="text" type="text" />
+        <button>Create</button>
+      </div>
+    </form>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then((registration) => {});
         });
       }
+    </script>
+    <script>
+      function setNetworkStatus() {
+        const el = document.getElementById('network-status');
+        el.innerHTML = navigator.onLine ? 'on-line' : 'off-line';
+      }
+
+      setNetworkStatus();
+
+      window.addEventListener('offline', setNetworkStatus);
+      window.addEventListener('online', setNetworkStatus);
     </script>
   </body>
 </html>
