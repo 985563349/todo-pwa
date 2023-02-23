@@ -16,4 +16,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('push', (event) => {
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification('Notification', {
+      icon: '/icons/pwa-192x192.png',
+      badge: '/icons/pwa-64x64.png',
+      body: data.message,
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {});
