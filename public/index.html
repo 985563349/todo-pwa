@@ -10,21 +10,41 @@
     <title>Todo PWA</title>
   </head>
   <body>
-    <h1>Todo PWA</h1>
-    <p>Network Status: <span id="network-status"></span></p>
-    <form id="form">
-      <div>
-        <input name="text" type="text" />
-        <button>Create</button>
-      </div>
-    </form>
+    <main>
+      <h1>Todo PWA</h1>
+      <p>Network Status: <span id="network-status"></span></p>
+      <form id="form">
+        <div>
+          <input name="text" type="text" />
+          <button>Create</button>
+        </div>
+      </form>
+      <div id="list"></div>
+    </main>
     <script src="/IndexedDb.js"></script>
     <script src="/Stats.js"></script>
+    <script src="/utils.js"></script>
     <script src="/main.js"></script>
     <script>
+      const dataList = document.getElementById('list');
+
+      const todos = [
+        { id: 1, text: 'eat' },
+        { id: 2, text: 'sleep' },
+      ];
+
+      dataList.append(renderList(todos));
+
+      function renderList(data) {
+        if (data.length <= 0) {
+          return createElement('div', null, 'No Data');
+        }
+        const children = data.map((item) => createElement('li', null, item.text));
+        return createElement('ul', null, ...children);
+      }
+
       const stats = new Stats();
       document.getElementById('network-status').appendChild(stats.domElement);
-
       window.addEventListener('offline', () => stats.update());
       window.addEventListener('online', () => stats.update());
     </script>

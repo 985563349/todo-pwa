@@ -2,7 +2,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open('todo-pwa-cache')
-      .then((cache) => cache.addAll(['/index.html', '/main.js', '/Stats.js']))
+      .then((cache) =>
+        cache.addAll(['/index.html', '/IndexedDB.js', '/Stats.js', '/utils.js', '/main.js'])
+      )
   );
 });
 
