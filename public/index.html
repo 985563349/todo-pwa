@@ -26,27 +26,35 @@
     <script src="/utils.js"></script>
     <script src="/main.js"></script>
     <script>
-      const dataList = document.getElementById('list');
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          const dataList = document.getElementById('list');
 
-      const todos = [
-        { id: 1, text: 'eat' },
-        { id: 2, text: 'sleep' },
-      ];
+          navigator.serviceWorker.ready
+            .then(() => navigator.serviceWorker.getRegistration())
+            .then((serviceWorkerRegistration) => serviceWorkerRegistration.sync.register('sync'))
+            .then(() => {
+              console.log('%c request synchronization', 'color: #5C3B02');
+            });
 
-      dataList.append(renderList(todos));
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            console.log('%c synchronization complete', 'color: #00C9A7');
+          });
 
-      function renderList(data) {
-        if (data.length <= 0) {
-          return createElement('div', null, 'No Data');
-        }
-        const children = data.map((item) => createElement('li', null, item.text));
-        return createElement('ul', null, ...children);
+          function renderList(data) {
+            if (data.length <= 0) {
+              return createElement('div', null, 'No Data');
+            }
+            const children = data.map((item) => createElement('li', null, item.text));
+            return createElement('ul', null, ...children);
+          }
+
+          const stats = new Stats();
+          document.getElementById('network-status').appendChild(stats.domElement);
+          window.addEventListener('offline', () => stats.update());
+          window.addEventListener('online', () => stats.update());
+        });
       }
-
-      const stats = new Stats();
-      document.getElementById('network-status').appendChild(stats.domElement);
-      window.addEventListener('offline', () => stats.update());
-      window.addEventListener('online', () => stats.update());
     </script>
   </body>
 </html>

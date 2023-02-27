@@ -22,6 +22,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('sync', (event) => {
+  event.waitUntil(
+    self.clients.matchAll().then((clients) =>
+      clients.forEach((client) => {
+        client.postMessage('synchronization complete');
+      })
+    )
+  );
+});
+
 self.addEventListener('push', (event) => {
   const data = event.data.json();
   event.waitUntil(
