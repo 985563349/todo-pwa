@@ -5,31 +5,26 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js');
 
-    navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
+    navigator.serviceWorker.ready.then(async (registration) => {
       const options = {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY),
       };
 
-      serviceWorkerRegistration.pushManager.subscribe(options).then(
-        (pushSubscription) => {
-          if (pushSubscription) return;
-
-          fetch('/subscribe', {
-            headers: {
-              'content-type': 'application/json',
-            },
-            method: 'POST',
-            body: JSON.stringify(pushSubscription),
-          }).catch((error) => {
-            console.error(error);
-            pushSubscription.unsubscribe();
-          });
-        },
-        (error) => {
-          console.error(error);
-        }
-      );
+      try {
+        const pushSubscription = await registration.pushManager.subscribe(options);
+        if (pushSubscription) return;
+        await fetch('/subscribe', {
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+          body: JSON.stringify(pushSubscription),
+        })
+      } catch (error) {
+        console.error(error);
+        pushSubscription.unsubscribe();
+      }
     });
   });
 }

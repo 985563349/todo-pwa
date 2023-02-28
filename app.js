@@ -19,6 +19,24 @@ webpush.setVapidDetails(
   vapidKeys.privateKey
 );
 
+const todos = [];
+
+router.get('/find-all', (ctx) => {
+  ctx.body = todos;
+});
+
+router.post('/create', (ctx) => {
+  const data = ctx.request.body
+  todos.push(data);
+  ctx.body = 'created succeeded.';
+});
+
+router.post('/sync', (ctx) => {
+  const data = ctx.request.body
+  todos.push(...data);
+  ctx.body = 'synced succeeded.'
+})
+
 router.post('/subscribe', (ctx) => {
   const subscription = ctx.request.body;
   webpush.sendNotification(

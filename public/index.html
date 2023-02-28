@@ -23,38 +23,102 @@
     </main>
     <script src="/IndexedDb.js"></script>
     <script src="/Stats.js"></script>
-    <script src="/utils.js"></script>
     <script src="/main.js"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          const dataList = document.getElementById('list');
+      const form = document.getElementById('form');
+      const dataList = document.getElementById('list');
+      const networkStatus = document.getElementById('network-status');
+      const stats = new Stats();
 
-          navigator.serviceWorker.ready
-            .then(() => navigator.serviceWorker.getRegistration())
-            .then((serviceWorkerRegistration) => serviceWorkerRegistration.sync.register('sync'))
-            .then(() => {
-              console.log('%c request synchronization', 'color: #5C3B02');
-            });
+      networkStatus.appendChild(stats.domElement);
 
-          navigator.serviceWorker.addEventListener('message', (event) => {
-            console.log('%c synchronization complete', 'color: #00C9A7');
+      window.addEventListener('load', () => {
+        window.addEventListener('offline', () => stats.update());
+        window.addEventListener('online', () => stats.update());
+
+        if ('serviceWorker' in navigator) {
+          const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
+          db.open();
+
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const text = new FormData(event.target).get('text');
+
+            try {
+              if (stats.online) {
+                await fetch('/create', {
+                  method: 'POST',
+                  headers: {
+                    'content-type': 'application/json',
+                  },
+                  body: JSON.stringify({ text }),
+                });
+                fetchTodoAndRenderList();
+              } else {
+                await db.add({ text });
+                const data = await db.getAll();
+                renderList(data);
+              }
+            } catch (error) {
+              console.error(error);
+            }
           });
 
-          function renderList(data) {
-            if (data.length <= 0) {
-              return createElement('div', null, 'No Data');
+          window.addEventListener('online', async () => {
+            try {
+              const registration = await navigator.serviceWorker.ready
+              await registration.sync.register('trigger sync')
+              console.log('%c request synchronization', 'color: #5C3B02');
+            } catch (error) {
+              console.error(error);
             }
-            const children = data.map((item) => createElement('li', null, item.text));
-            return createElement('ul', null, ...children);
-          }
+          })
 
-          const stats = new Stats();
-          document.getElementById('network-status').appendChild(stats.domElement);
-          window.addEventListener('offline', () => stats.update());
-          window.addEventListener('online', () => stats.update());
-        });
-      }
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            fetchTodoAndRenderList();
+            console.log('%c synchronization complete', 'color: #00C9A7');
+          });
+        } else {
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const text = new FormData(event.target).get('text');
+
+            try {
+              await fetch('/create', {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({ text }),
+              });
+              fetchTodoAndRenderList();
+            } catch (error) {
+              console.error(error);
+            }
+          });
+        }
+
+        async function fetchTodoAndRenderList() {
+          try {
+            const response = await fetch('/find-all');
+            const data = await response.json();
+            renderList(data);
+          } catch (error) {
+            console.error(error);
+          }
+        }
+
+        function renderList(data) {
+          if (data.length <= 0) {
+            dataList.innerHTML = '<div>No Data</div>';
+            return;
+          }
+          const listItems = data.map((item) => `<li>${item.text}</li>`).join('');
+          dataList.innerHTML = `<ul>${listItems}</ul>`;
+        }
+
+        fetchTodoAndRenderList();
+      });
     </script>
   </body>
 </html>

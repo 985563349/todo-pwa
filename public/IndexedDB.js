@@ -1,11 +1,12 @@
 class IndexedDB {
   constructor(options) {
     this.options = options;
+    this.db = null;
   }
 
   open() {
     return new Promise((resolve, reject) => {
-      const openRequest = window.indexedDB.open(this.options.name, this.options.version);
+      const openRequest = indexedDB.open(this.options.name, this.options.version);
 
       openRequest.onerror = (event) => {
         reject(`IndexedDB error: ${event.target.error}`);
@@ -19,7 +20,7 @@ class IndexedDB {
       openRequest.onupgradeneeded = (event) => {
         const db = event.target.result;
         if (!db.objectStoreNames.contains(this.options.storeName)) {
-          db.createObjectStore(this.options.storeName, { keyPath: 'id' });
+          db.createObjectStore(this.options.storeName, { autoIncrement: true });
         }
       };
     });
@@ -63,44 +64,66 @@ class IndexedDB {
   }
 
   get(id) {
-    const transaction = this.db.transaction(this.options.storeName, 'readonly');
-    const store = transaction.objectStore(this.options.storeName);
-    const request = store.get(id);
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(this.options.storeName, 'readonly');
+      const store = transaction.objectStore(this.options.storeName);
+      const request = store.get(id);
 
-    request.onerror = (event) => {
-      reject(`IndexedDB error: ${event.target.error}`);
-    };
+      request.onerror = (event) => {
+        reject(`IndexedDB error: ${event.target.error}`);
+      };
 
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+    })
   }
 
   getAll() {
-    const transaction = this.db.transaction(this.options.storeName, 'readonly');
-    const store = transaction.objectStore(this.options.storeName);
-    const request = store.getAll();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(this.options.storeName, 'readonly');
+      const store = transaction.objectStore(this.options.storeName);
+      const request = store.getAll();
 
-    request.onerror = (event) => {
-      reject(`IndexedDB error: ${event.target.error}`);
-    };
+      request.onerror = (event) => {
+        reject(`IndexedDB error: ${event.target.error}`);
+      };
 
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+    })
   }
 
   update(id, data) {
-    const transaction = this.db.transaction(this.options.storeName, 'readwrite');
-    const store = transaction.objectStore(this.options.storeName);
-    const request = store.put(data);
+    return new Promise(() => {
+      const transaction = this.db.transaction(this.options.storeName, 'readwrite');
+      const store = transaction.objectStore(this.options.storeName);
+      const request = store.put(data);
 
-    request.onerror = (event) => {
-      reject(`IndexedDB error: ${event.target.error}`);
-    };
+      request.onerror = (event) => {
+        reject(`IndexedDB error: ${event.target.error}`);
+      };
 
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+    })
+  }
+
+  clear() {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(this.options.storeName, 'readwrite');
+      const store = transaction.objectStore(this.options.storeName);
+      const request = store.clear();
+
+      request.onerror = (event) => {
+        reject(`IndexedDB error: ${event.target.error}`);
+      };
+
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+    })
   }
 }
