@@ -1,29 +1,23 @@
 importScripts('./IndexedDB.js');
 
-const CACHE_NAME = 'todo-pwa-cache'
-const urlToCache = [
-  '/index.html',
-  '/IndexedDB.js',
-  '/Stats.js',
-  '/main.js',
-]
+const CACHE_NAME = 'todo-pwa-cache';
+const urlToCache = ['/index.html', '/IndexedDB.js', '/Stats.js', '/main.js'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) =>cache.addAll(urlToCache))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlToCache)));
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(cacheNames
-        .filter((cacheName) => cacheName !== CACHE_NAME)
-        .map((cacheName) => caches.delete(cacheName))
+    caches
+      .keys()
+      .then((cacheNames) =>
+        Promise.all(
+          cacheNames
+            .filter((cacheName) => cacheName !== CACHE_NAME)
+            .map((cacheName) => caches.delete(cacheName))
+        )
       )
-    )
   );
 });
 
@@ -32,9 +26,11 @@ self.addEventListener('sync', (event) => {
     const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
 
     event.waitUntil(
-      db.open()
+      db
+        .open()
         .then(() => db.getAll())
-        .then((data) => fetch('/sync', {
+        .then((data) =>
+          fetch('/sync', {
             headers: { 'content-type': 'application/json' },
             method: 'POST',
             body: JSON.stringify(data),

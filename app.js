@@ -19,23 +19,23 @@ webpush.setVapidDetails(
   vapidKeys.privateKey
 );
 
-const todos = [];
+const todos = [{ text: 'eat' }];
 
 router.get('/find-all', (ctx) => {
   ctx.body = todos;
 });
 
 router.post('/create', (ctx) => {
-  const data = ctx.request.body
+  const data = ctx.request.body;
   todos.push(data);
   ctx.body = 'created succeeded.';
 });
 
 router.post('/sync', (ctx) => {
-  const data = ctx.request.body
+  const data = ctx.request.body;
   todos.push(...data);
-  ctx.body = 'synced succeeded.'
-})
+  ctx.body = 'synced succeeded.';
+});
 
 router.post('/subscribe', (ctx) => {
   const subscription = ctx.request.body;

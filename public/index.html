@@ -8,6 +8,15 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.json" />
     <title>Todo PWA</title>
+    <style>
+      .online {
+        color: green;
+      }
+
+      .off-line {
+        color: red;
+      }
+    </style>
   </head>
   <body>
     <main>
@@ -25,78 +34,16 @@
     <script src="/Stats.js"></script>
     <script src="/main.js"></script>
     <script>
-      const form = document.getElementById('form');
-      const dataList = document.getElementById('list');
-      const networkStatus = document.getElementById('network-status');
-      const stats = new Stats();
-
-      networkStatus.appendChild(stats.domElement);
-
       window.addEventListener('load', () => {
+        const form = document.getElementById('form');
+        const dataList = document.getElementById('list');
+        const networkStatus = document.getElementById('network-status');
+        const stats = new Stats();
+
+        networkStatus.appendChild(stats.domElement);
+
         window.addEventListener('offline', () => stats.update());
         window.addEventListener('online', () => stats.update());
-
-        if ('serviceWorker' in navigator) {
-          const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
-          db.open();
-
-          form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const text = new FormData(event.target).get('text');
-
-            try {
-              if (stats.online) {
-                await fetch('/create', {
-                  method: 'POST',
-                  headers: {
-                    'content-type': 'application/json',
-                  },
-                  body: JSON.stringify({ text }),
-                });
-                fetchTodoAndRenderList();
-              } else {
-                await db.add({ text });
-                const data = await db.getAll();
-                renderList(data);
-              }
-            } catch (error) {
-              console.error(error);
-            }
-          });
-
-          window.addEventListener('online', async () => {
-            try {
-              const registration = await navigator.serviceWorker.ready
-              await registration.sync.register('trigger sync')
-              console.log('%c request synchronization', 'color: #5C3B02');
-            } catch (error) {
-              console.error(error);
-            }
-          })
-
-          navigator.serviceWorker.addEventListener('message', (event) => {
-            fetchTodoAndRenderList();
-            console.log('%c synchronization complete', 'color: #00C9A7');
-          });
-        } else {
-          form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const text = new FormData(event.target).get('text');
-
-            try {
-              await fetch('/create', {
-                method: 'POST',
-                headers: {
-                  'content-type': 'application/json',
-                },
-                body: JSON.stringify({ text }),
-              });
-              fetchTodoAndRenderList();
-            } catch (error) {
-              console.error(error);
-            }
-          });
-        }
 
         async function fetchTodoAndRenderList() {
           try {
@@ -117,7 +64,77 @@
           dataList.innerHTML = `<ul>${listItems}</ul>`;
         }
 
-        fetchTodoAndRenderList();
+        if ('serviceWorker' in navigator && 'indexedDB' in window) {
+          const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
+          db.open().finally(async () => {
+            if (!stats.online && db.connected) {
+              const data = await db.getAll();
+              renderList(data);
+            } else {
+              fetchTodoAndRenderList();
+            }
+          });
+
+          async function triggerBackgroundSync() {
+            try {
+              const registration = await navigator.serviceWorker.ready;
+              await registration.sync.register('trigger sync');
+              console.log('%c request synchronization', 'color: #5C3B02');
+            } catch (error) {
+              console.error(error);
+            }
+          }
+
+          if (stats.online) triggerBackgroundSync();
+          window.addEventListener('online', triggerBackgroundSync);
+
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            fetchTodoAndRenderList();
+            console.log('%c synchronization complete', 'color: #00C9A7');
+          });
+
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const text = new FormData(event.target).get('text');
+
+            try {
+              if (stats.online === false && db.connected) {
+                await db.add({ text });
+                const data = await db.getAll();
+                renderList(data);
+              } else {
+                await fetch('/create', {
+                  method: 'POST',
+                  headers: {
+                    'content-type': 'application/json',
+                  },
+                  body: JSON.stringify({ text }),
+                });
+                fetchTodoAndRenderList();
+              }
+            } catch (error) {
+              console.error(error);
+            }
+          });
+        } else {
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const text = new FormData(event.target).get('text');
+
+            try {
+              await fetch('/create', {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({ text }),
+              });
+              fetchTodoAndRenderList();
+            } catch (error) {
+              console.error(error);
+            }
+          });
+        }
       });
     </script>
   </body>

@@ -2,6 +2,7 @@ class IndexedDB {
   constructor(options) {
     this.options = options;
     this.db = null;
+    this.connected = false;
   }
 
   open() {
@@ -14,6 +15,7 @@ class IndexedDB {
 
       openRequest.onsuccess = (event) => {
         this.db = event.target.result;
+        this.connected = true;
         resolve(this.db);
       };
 
@@ -29,6 +31,7 @@ class IndexedDB {
   close() {
     this.db.close();
     this.db = null;
+    this.connected = false;
   }
 
   add(data) {
@@ -76,7 +79,7 @@ class IndexedDB {
       request.onsuccess = (event) => {
         resolve(event.target.result);
       };
-    })
+    });
   }
 
   getAll() {
@@ -92,7 +95,7 @@ class IndexedDB {
       request.onsuccess = (event) => {
         resolve(event.target.result);
       };
-    })
+    });
   }
 
   update(id, data) {
@@ -108,7 +111,23 @@ class IndexedDB {
       request.onsuccess = (event) => {
         resolve(event.target.result);
       };
-    })
+    });
+  }
+
+  count() {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(this.options.storeName, 'readwrite');
+      const store = transaction.objectStore(this.options.storeName);
+      const request = store.count();
+
+      request.onerror = (event) => {
+        reject(`IndexedDB error: ${event.target.error}`);
+      };
+
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+    });
   }
 
   clear() {
@@ -124,6 +143,6 @@ class IndexedDB {
       request.onsuccess = (event) => {
         resolve(event.target.result);
       };
-    })
+    });
   }
 }
