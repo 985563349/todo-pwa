@@ -13,7 +13,7 @@
         color: green;
       }
 
-      .off-line {
+      .offline {
         color: red;
       }
     </style>
@@ -21,120 +21,122 @@
   <body>
     <main>
       <h1>Todo PWA</h1>
-      <p>Network Status: <span id="network-status"></span></p>
+      <p>Network Status: <span id="status"></span></p>
       <form id="form">
         <div>
           <input name="text" type="text" />
-          <button>Create</button>
+          <button type="submit">Create</button>
+          <button type="button" id="ping">Ping</button>
         </div>
       </form>
       <div id="list"></div>
     </main>
     <script src="/IndexedDb.js"></script>
-    <script src="/Stats.js"></script>
     <script src="/main.js"></script>
     <script>
       window.addEventListener('load', () => {
         const form = document.getElementById('form');
-        const dataList = document.getElementById('list');
-        const networkStatus = document.getElementById('network-status');
-        const stats = new Stats();
+        const list = document.getElementById('list');
+        const statusElement = document.getElementById('status');
 
-        networkStatus.appendChild(stats.domElement);
+        function updateOnlineStatus(event) {
+          const online = navigator.onLine;
 
-        window.addEventListener('offline', () => stats.update());
-        window.addEventListener('online', () => stats.update());
+          statusElement.classList.toggle('online', online);
+          statusElement.classList.toggle('offline', !online);
+          statusElement.textContent = online ? 'on-line' : 'off-line';
+        }
+
+        async function createTodo(data) {
+          try {
+            if (navigator.onLine) {
+              await fetch('/todo/create', { method: 'POST', body: data });
+            } else if ('indexedDB' in window) {
+              const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
+              await db.open();
+              await db.add(data);
+            } else {
+              throw new Error('create todo failed');
+            }
+          } catch (error) {
+            throw error;
+          }
+        }
 
         async function fetchTodoAndRenderList() {
           try {
-            const response = await fetch('/find-all');
-            const data = await response.json();
-            renderList(data);
+            if (navigator.onLine) {
+              const response = await fetch('/todo/find-all');
+              const data = await response.json();
+              renderList(data);
+            } else if ('indexedDB' in window) {
+              const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
+              await db.open();
+              const data = await db.getAll();
+              renderList(data);
+            } else {
+              throw new Error('render todo failed');
+            }
           } catch (error) {
-            console.error(error);
+            throw error;
           }
         }
 
         function renderList(data) {
           if (data.length <= 0) {
-            dataList.innerHTML = '<div>No Data</div>';
+            list.innerHTML = '<div>No Data</div>';
             return;
           }
-          const listItems = data.map((item) => `<li>${item.text}</li>`).join('');
-          dataList.innerHTML = `<ul>${listItems}</ul>`;
+          const listItems = data.map((text) => `<li>${text}</li>`).join('');
+          list.innerHTML = `<ul>${listItems}</ul>`;
         }
 
-        if ('serviceWorker' in navigator && 'indexedDB' in window) {
-          const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
-          db.open().finally(async () => {
-            if (!stats.online && db.connected) {
-              const data = await db.getAll();
-              renderList(data);
-            } else {
-              fetchTodoAndRenderList();
+        async function triggerBackgroundSync() {
+          try {
+            if (!('serviceWorker' in navigator) || !('indexedDB' in window)) {
+              console.error('background synchronization is not supported');
+              return;
             }
-          });
 
-          async function triggerBackgroundSync() {
-            try {
-              const registration = await navigator.serviceWorker.ready;
-              await registration.sync.register('trigger sync');
-              console.log('%c request synchronization', 'color: #5C3B02');
-            } catch (error) {
-              console.error(error);
-            }
+            const registration = await navigator.serviceWorker.ready;
+            await registration.sync.register('sync');
+            console.log('%c request sync', 'color: #5C3B02');
+          } catch (error) {
+            console.error(error);
           }
-
-          if (stats.online) triggerBackgroundSync();
-          window.addEventListener('online', triggerBackgroundSync);
-
-          navigator.serviceWorker.addEventListener('message', (event) => {
-            fetchTodoAndRenderList();
-            console.log('%c synchronization complete', 'color: #00C9A7');
-          });
-
-          form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const text = new FormData(event.target).get('text');
-
-            try {
-              if (stats.online === false && db.connected) {
-                await db.add({ text });
-                const data = await db.getAll();
-                renderList(data);
-              } else {
-                await fetch('/create', {
-                  method: 'POST',
-                  headers: {
-                    'content-type': 'application/json',
-                  },
-                  body: JSON.stringify({ text }),
-                });
-                fetchTodoAndRenderList();
-              }
-            } catch (error) {
-              console.error(error);
-            }
-          });
-        } else {
-          form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const text = new FormData(event.target).get('text');
-
-            try {
-              await fetch('/create', {
-                method: 'POST',
-                headers: {
-                  'content-type': 'application/json',
-                },
-                body: JSON.stringify({ text }),
-              });
-              fetchTodoAndRenderList();
-            } catch (error) {
-              console.error(error);
-            }
-          });
         }
+
+        if ('serviceWorker' in navigator) {
+          triggerBackgroundSync();
+
+          navigator.serviceWorker.addEventListener('message', async (event) => {
+            try {
+              await fetchTodoAndRenderList();
+              console.log('%c complete sync', 'color: #00C9A7');
+            } catch (error) {
+              console.error(error);
+            }
+          });
+
+          window.addEventListener('online', triggerBackgroundSync);
+        }
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const text = new FormData(event.target).get('text');
+
+          try {
+            await createTodo(text);
+            await fetchTodoAndRenderList();
+          } catch (error) {
+            console.error(error);
+          }
+        });
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        updateOnlineStatus();
       });
     </script>
   </body>

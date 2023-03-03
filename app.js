@@ -3,6 +3,7 @@ const Router = require('@koa/router');
 const { koaBody } = require('koa-body');
 const serve = require('koa-static');
 const webpush = require('web-push');
+const { union, xor } = require('lodash');
 
 const app = new Koa();
 const router = new Router();
@@ -19,26 +20,28 @@ webpush.setVapidDetails(
   vapidKeys.privateKey
 );
 
-const todos = [{ text: 'eat' }];
+let subscription = null;
 
-router.get('/find-all', (ctx) => {
+let todos = ['eat'];
+
+router.get('/todo/find-all', (ctx) => {
   ctx.body = todos;
 });
 
-router.post('/create', (ctx) => {
+router.post('/todo/create', (ctx) => {
   const data = ctx.request.body;
   todos.push(data);
   ctx.body = 'created succeeded.';
 });
 
-router.post('/sync', (ctx) => {
+router.post('/todo/sync', (ctx) => {
   const data = ctx.request.body;
-  todos.push(...data);
-  ctx.body = 'synced succeeded.';
+  todos = union(todos, data);
+  ctx.body = xor(todos, data);
 });
 
 router.post('/subscribe', (ctx) => {
-  const subscription = ctx.request.body;
+  subscription = ctx.request.body;
   webpush.sendNotification(
     subscription,
     JSON.stringify({ message: 'subscription succeeded.', type: 'subscribe' })
@@ -46,10 +49,17 @@ router.post('/subscribe', (ctx) => {
   ctx.body = 'subscription succeeded.';
 });
 
+router.post('/ping', (ctx) => {
+  setTimeout(() => {
+    webpush.sendNotification(subscription, JSON.stringify({ message: 'Pong', type: 'ping' }));
+  }, 1000);
+  ctx.body = null;
+});
+
 app.use(koaBody());
 app.use(router.routes());
 app.use(serve(__dirname + '/public'));
 
-app.listen(3000, () => {
-  console.log('server running at http://localhost:3000');
+app.listen(8081, () => {
+  console.log('server running at http://localhost:8081');
 });

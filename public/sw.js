@@ -1,10 +1,39 @@
 importScripts('./IndexedDB.js');
 
 const CACHE_NAME = 'todo-pwa-cache';
-const urlToCache = ['/index.html', '/IndexedDB.js', '/Stats.js', '/main.js'];
+const urlsToPrefetch = ['/index.html', '/IndexedDB.js', '/main.js'];
+
+function postMessage(message, transferables) {
+  self.clients.matchAll().then((clients) => {
+    clients.forEach((client) => client.postMessage(message, transferables));
+  });
+}
+
+async function syncData() {
+  try {
+    const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
+    await db.open();
+    const data = await db.getAll();
+
+    const response = await fetch('/todo/sync', {
+      headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      result.forEach((item) => db.put(item));
+    } else {
+      throw new Error('Network response was not ok');
+    }
+  } catch (error) {
+    throw error;
+  }
+}
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlToCache)));
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToPrefetch)));
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,25 +51,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'trigger sync') {
-    const db = new IndexedDB({ name: 'todo', version: 1, storeName: 'todos' });
-
+  if (event.tag === 'sync') {
     event.waitUntil(
-      db
-        .open()
-        .then(() => db.getAll())
-        .then((data) =>
-          fetch('/sync', {
-            headers: { 'content-type': 'application/json' },
-            method: 'POST',
-            body: JSON.stringify(data),
-          })
-        )
-        .then(() => db.clear())
-        .then(() => self.clients.matchAll())
-        .then((clients) => {
-          clients.forEach((client) => client.postMessage('synchronization complete'));
-        })
+      syncData()
+        .then(() => postMessage('sync complete'))
+        .catch((error) => console.error(error))
     );
   }
 });
@@ -52,7 +67,12 @@ self.addEventListener('push', (event) => {
     badge: '/icons/pwa-64x64.png',
     body: data.message,
   };
+
   event.waitUntil(self.registration.showNotification('Notification', options));
 });
 
-self.addEventListener('fetch', (event) => {});
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => response || fetch(event.request))
+  );
+});

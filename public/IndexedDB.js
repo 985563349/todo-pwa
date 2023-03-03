@@ -98,8 +98,8 @@ class IndexedDB {
     });
   }
 
-  update(id, data) {
-    return new Promise(() => {
+  put(data) {
+    return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(this.options.storeName, 'readwrite');
       const store = transaction.objectStore(this.options.storeName);
       const request = store.put(data);
